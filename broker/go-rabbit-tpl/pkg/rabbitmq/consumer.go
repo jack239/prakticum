@@ -4,31 +4,18 @@ import (
 	"log"
 
 	"github.com/lekan-pvp/grade/go-rabbit/internal/models"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Consumer struct {
-	conn    *amqp.Connection
-	monitor *Monitor
+	connection *Connection
+	monitor    *Monitor
 }
 
 func (c *Consumer) ConsumeJSON(queue string, handler func(*models.Message) bool) error {
-	ch, err := c.conn.Channel()
+	msgs, err := c.connection.channel.Consume(queue, "", false, false, false, false, nil)
 	if err != nil {
 		return err
 	}
-	defer ch.Close()
-
-	if err := ch.ExchangeDeclare(queue, "direct", true, false, false, false, nil); err != nil {
-		return err
-	}
-
-	msgs, err := ch.Consume(queue, "order-processor", false, false, false, false, nil)
-	if err != nil { // проверяем ошибку
-		log.Fatal("Ошибка подписки на сообщения:", err) // выходим при ошибке
-	}
-
-	log.Println("Ожидаем сообщения о заказах...") // логируем готовность
 
 	go func() {
 		for delivery := range msgs { // читаем поток сообщений
@@ -59,6 +46,6 @@ func (c *Consumer) ConsumeJSON(queue string, handler func(*models.Message) bool)
 	return nil
 }
 
-func NewConsumer(conn *amqp.Connection, monitor *Monitor) *Consumer {
-	return &Consumer{conn: conn, monitor: monitor}
+func NewConsumer(conn *Connection, monitor *Monitor) *Consumer {
+	return &Consumer{connection: conn, monitor: monitor}
 }

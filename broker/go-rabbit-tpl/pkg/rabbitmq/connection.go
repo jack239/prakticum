@@ -4,6 +4,32 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func NewConnection(url string) (*amqp.Connection, error) {
-	return amqp.Dial(url)
+type Connection struct {
+	conn    *amqp.Connection
+	channel *amqp.Channel
+}
+
+func NewConnection(url string) (*Connection, error) {
+	conn, err := amqp.Dial(url)
+	if err != nil {
+		return nil, err
+	}
+	ch, err := conn.Channel()
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return &Connection{
+		conn:    conn,
+		channel: ch,
+	}, nil
+}
+
+func (c *Connection) Close() {
+	c.channel.Close()
+	c.conn.Close()
+}
+
+func (c *Connection) Channel() *amqp.Channel {
+	return c.channel
 }
