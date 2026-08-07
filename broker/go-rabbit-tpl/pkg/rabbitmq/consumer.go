@@ -1,4 +1,4 @@
-package rabbtmq_go
+package rabbtmq
 
 import (
 	"encoding/json"

@@ -1,3 +1,7 @@
+package rabbtmq
+
+import amqp "github.com/rabbitmq/amqp091-go"
+
 func SetupDLX(ch *amqp.Channel, queueName, dlxQueueName, dlxExchange string) error {
 	if err := ch.ExchangeDeclare(dlxExchange, "direct", true, false, false, false, nil); err != nil {
 		return err

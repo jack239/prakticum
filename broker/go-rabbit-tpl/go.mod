@@ -1,5 +1,5 @@
-module github.com/PracticumGrade/go-rabbit-tpl
+module github.com/lekan-pvp/grade/go-rabbit
 
 go 1.24.5
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require github.com/rabbitmq/amqp091-go v1.13.0
