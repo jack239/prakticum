@@ -1,9 +1,9 @@
-package rabbtmq
+package rabbitmq
 
 import (
-	"encoding/json"
 	"log"
 
+	"github.com/lekan-pvp/grade/go-rabbit/internal/models"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -12,7 +12,7 @@ type Consumer struct {
 	monitor *Monitor
 }
 
-func (c *Consumer) ConsumeJSON(queue string, handler func(*Message) bool) error {
+func (c *Consumer) ConsumeJSON(queue string, handler func(*models.Message) bool) error {
 	ch, err := c.conn.Channel()
 	if err != nil {
 		return err
@@ -30,17 +30,35 @@ func (c *Consumer) ConsumeJSON(queue string, handler func(*Message) bool) error 
 
 	log.Println("Ожидаем сообщения о заказах...") // логируем готовность
 
-	// Обрабатываем входящие сообщения
-	for d := range msgs { // читаем поток сообщений
-		var message Message
-		if err := json.Unmarshal(d.Body, &message); err != nil {
-			c.monitor.error++
-			continue
-		}
-		if err := handler(&message); err != nil {
-			c.monitor.error++
-			continue
-		}
+	go func() {
+		for delivery := range msgs { // читаем поток сообщений
+			msg, err := models.FromJSON(delivery.Body)
+			if err != nil {
+				c.monitor.IncError()
+				log.Printf("Failed to parse JSON message: %v", err)
+				_ = delivery.Reject(false)
+				continue
+			}
 
-	}
+			if handler(msg) {
+				err = delivery.Ack(false)
+				if err != nil {
+					log.Printf("Failed to send ACK: %v", err)
+				} else {
+					c.monitor.IncReceived()
+				}
+			} else {
+				err = delivery.Reject(false)
+				if err != nil {
+					log.Printf("Failed to send NASK: %v", err)
+				}
+			}
+
+		}
+	}()
+	return nil
+}
+
+func NewConsumer(conn *amqp.Connection, monitor *Monitor) *Consumer {
+	return &Consumer{conn: conn, monitor: monitor}
 }
