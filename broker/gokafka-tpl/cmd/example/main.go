@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/lekan-pvp/grade/go-kafka/internal/client"
+	"github.com/lekan-pvp/grade/go-kafka/internal/config"
+	"github.com/lekan-pvp/grade/go-kafka/internal/message"
+	"github.com/lekan-pvp/grade/go-kafka/internal/monitor"
+	"github.com/lekan-pvp/grade/go-kafka/pkg/gokafka"
 )
 
 func main() {
 	// Загружаем конфигурацию
-	//cfg, err := config.LoadConfig("config.yml")
+	cfg, err := config.LoadConfig("config.yml")
 	if err != nil {
 		log.Fatal("Failed to load config:", err)
 	}
