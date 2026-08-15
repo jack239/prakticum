@@ -12,7 +12,24 @@ import (
 	"github.com/lovoo/goka/codec"
 )
 
-// …
+type User struct {
+	Name string `json:"name"`
+}
+
+type UserCodec struct{}
+
+func (jc *UserCodec) Encode(value interface{}) ([]byte, error) {
+	// Ваш код тут
+	if user, ok := value.(User); ok {
+		return []byte(user.Name), nil
+	}
+	return nil, fmt.Errorf("Illiegal type")
+}
+
+func (jc *UserCodec) Decode(data []byte) (interface{}, error) {
+	// Ваш код тут
+	return nil, nil
+}
 
 var (
 	brokers             = []string{"localhost:9092"} // Адрес брокера
