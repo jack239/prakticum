@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/lovoo/goka"
+	"github.com/lovoo/goka/codec"
 )
 
 var (
@@ -34,11 +35,18 @@ func CategoryProcessor(brokers []string, input, output goka.Stream) {
 			category = "bronze"
 		}
 
+		currentCategory := ctx.Value()
+
+		if currentCategory != nil && currentCategory.(string) == category {
+			return // Не отправляем категорию, если она не изменилась
+		}
+		ctx.SetValue(category)
 		ctx.Emit(output, ctx.Key(), common.UserCategory{Category: category})
 	}
 
 	g := goka.DefineGroup(groupUsersCategory,
 		goka.Input(input, new(common.JsonCodec[common.UserSum]), processFunc),
+		goka.Persist(new(codec.String)),
 		goka.Output(output, new(common.JsonCodec[common.UserCategory])),
 	)
 
