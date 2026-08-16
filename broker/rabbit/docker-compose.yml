@@ -1,0 +1,23 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP для приложений
+      - "15672:15672"   # Веб-панель управления
+    environment:
+      # and not to busy wait (+sbwt none +sbwtdcpu none +sbwtdio none):
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "+sbwt none +sbwtdcpu none +sbwtdio none"
+      # при необходимости можно задать пользователя/пароль:
+      # RABBITMQ_DEFAULT_USER: app
+      # RABBITMQ_DEFAULT_PASS: strong_password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  rabbitmq_data:
