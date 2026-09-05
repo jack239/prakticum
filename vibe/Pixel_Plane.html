@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Plane</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+
+  body {
+    background: #101018;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: "Courier New", monospace;
+    color: #fff;
+  }
+
+  #wrap {
+    text-align: center;
+  }
+
+  canvas {
+    border: 4px solid #3a3a52;
+    background: #1b1e3d;
+    display: block;
+    margin: 0 auto;
+    width: 480px;
+    height: 640px;
+  }
+
+  .hint {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #9aa;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="240" height="320"></canvas>
+  <div class="hint">&#8592; &#8594; arrows to move</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("game");
+  var ctx = canvas.getContext("2d");
+  var W = canvas.width;   // 240
+  var H = canvas.height;  // 320
+
+  var TILE = 8;           // pixel size, draw scaled by 2 to get chunky pixels
+
+  var plane = {
+    w: 24,
+    h: 16,
+    x: W / 2,
+    y: H - 40,
+    speed: 4
+  };
+
+  var obstacles = [];
+  var particles = [];
+  var score = 0;
+  var highScore = 0;
+  var gameOver = false;
+  var started = false;
+  var frame = 0;
+
+  var keys = {};
+  var spawnTimer = 0;
+
+  var obstacleColors = ["#7a5cff", "#ff5c7a", "#ffd35c", "#5cffa8"];
+
+  function reset() {
+    if (score > highScore) highScore = score;
+    plane.x = W / 2;
+    obstacles = [];
+    particles = [];
+    score = 0;
+    gameOver = false;
+    started = false;
+    frame = 0;
+    spawnTimer = 20;
+  }
+
+  function spawnObstacle() {
+    var w = 16 + Math.floor(Math.random() * 16);
+    obstacles.push({
+      x: Math.random() * (W - w),
+      y: -TILE,
+      w: w,
+      h: 16,
+      speed: 1 + Math.random() * 2,
+      color: obstacleColors[Math.floor(Math.random() * obstacleColors.length)]
+    });
+  }
+
+  function burstParticles(px, py) {
+    for (var i = 0; i < 20; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var spd = 1 + Math.random() * 3;
+      particles.push({
+        x: px,
+        y: py,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        life: 30 + Math.random() * 20,
+        maxLife: 50,
+        color: Math.random() < 0.5 ? "#ffcf5c" : "#ffffff"
+      });
+    }
+  }
+
+  function update() {
+    frame++;
+
+    // movement
+    if (keys["ArrowLeft"] || keys["Left"]) plane.x -= plane.speed;
+    if (keys["ArrowRight"] || keys["Right"]) plane.x += plane.speed;
+    plane.x = Math.max(0, Math.min(W - plane.w, plane.x));
+
+    // spawning
+    if (!gameOver && started) {
+      spawnTimer--;
+      if (spawnTimer <= 0) {
+        spawnObstacle();
+        spawnTimer = 30 + Math.floor(Math.random() * 25);
+      }
+    }
+
+    // obstacles
+    for (var i = obstacles.length - 1; i >= 0; i--) {
+      var o = obstacles[i];
+      o.y += o.speed;
+      if (o.y > H) {
+        obstacles.splice(i, 1);
+        if (!gameOver) score++;
+        continue;
+      }
+
+      // collision
+      if (
+        plane.x < o.x + o.w &&
+        plane.x + plane.w > o.x &&
+        plane.y < o.y + o.h &&
+        plane.y + plane.h > o.y
+      ) {
+        if (!gameOver) {
+          gameOver = true;
+          burstParticles(plane.x + plane.w / 2, plane.y + plane.h / 2);
+          if (score > highScore) highScore = score;
+        }
+      }
+    }
+
+    // particles
+    for (var p = particles.length - 1; p >= 0; p--) {
+      var pt = particles[p];
+      pt.x += pt.vx;
+      pt.y += pt.vy;
+      pt.vy += 0.05;
+      pt.life--;
+      if (pt.life <= 0) particles.splice(p, 1);
+    }
+  }
+
+  function drawPixelRect(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.round(x), Math.round(y), w, h);
+  }
+
+  function drawPlane() {
+    var x = Math.round(plane.x);
+    var y = Math.round(plane.y);
+
+    // tail
+    drawPixelRect(x + 8, y + 10, 4, 6, "#2a2a3a");
+    drawPixelRect(x + 4, y + 12, 4, 4, "#ff5c5c");
+    // body
+    drawPixelRect(x, y + 5, 22, 6, "#ff5c5c");
+    // nose
+    drawPixelRect(x + 20, y + 6, 4, 4, "#ff5c5c");
+    // cockpit
+    drawPixelRect(x + 13, y + 6, 6, 4, "#7ad0ff");
+    // wings
+    drawPixelRect(x + 4, y + 2, 8, 3, "#ff8f5c");
+    drawPixelRect(x + 4, y + 11, 8, 3, "#ff8f5c");
+    // engine glow
+    drawPixelRect(x - 2, y + 6, 2, 4, "#ffd35c");
+  }
+
+  function draw() {
+    // clear
+    ctx.fillStyle = "#1b1e3d";
+    ctx.fillRect(0, 0, W, H);
+
+    // background stars
+    for (var s = 0; s < 30; s++) {
+      var sx = (s * 41 + frame) % W;
+      var sy = (s * 97 + frame * 2) % H;
+      drawPixelRect(sx, sy, 2, 2, "rgba(255,255,255,0.25)");
+    }
+
+    // obstacles
+    for (var i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      drawPixelRect(o.x, o.y, o.w, o.h, o.color);
+      drawPixelRect(o.x, o.y, o.w, 2, "rgba(0,0,0,0.3)");
+    }
+
+    // plane (or explosion)
+    if (!gameOver) {
+      drawPlane();
+    }
+
+    // particles
+    for (var p = 0; p < particles.length; p++) {
+      var pt = particles[p];
+      drawPixelRect(pt.x, pt.y, 3, 3, pt.color);
+    }
+
+    // HUD
+    drawPixelRect(6, 6, 116, 16, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = "#fff";
+    ctx.font = "12px 'Courier New', monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("SCORE " + score, 12, 18);
+    ctx.fillText("BEST " + highScore, 76, 18);
+
+    // overlays
+    if (!started && !gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#fff";
+      ctx.font = "16px 'Courier New', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("PIXEL PLANE", W / 2, H / 2 - 20);
+      ctx.font = "10px 'Courier New', monospace";
+      ctx.fillText("press any arrow to start", W / 2, H / 2 + 6);
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#ff5c5c";
+      ctx.font = "20px 'Courier New', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("GAME OVER", W / 2, H / 2 - 20);
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px 'Courier New', monospace";
+      ctx.fillText("SCORE " + score, W / 2, H / 2 + 4);
+
+      // restart button
+      ctx.fillStyle = "#ff8f5c";
+      ctx.fillRect(W / 2 - 44, H / 2 + 16, 88, 24);
+      ctx.fillStyle = "#101018";
+      ctx.font = "12px 'Courier New', monospace";
+      ctx.fillText("[ RESTART ]", W / 2, H / 2 + 32);
+    }
+  }
+
+  // keyboard
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+    }
+    keys[e.key] = true;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === " ") {
+      if (!started && !gameOver) started = true;
+    }
+    if (e.key === " " && gameOver) {
+      reset();
+    }
+  });
+
+  window.addEventListener("keyup", function (e) {
+    keys[e.key] = false;
+  });
+
+  // canvas click to start / restart
+  canvas.addEventListener("click", function () {
+    if (gameOver) {
+      reset();
+    } else if (!started) {
+      started = true;
+    }
+  });
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>
